@@ -1,0 +1,7 @@
+-cp src
+-main grest.generator.Generator
+-js bin/run.js
+-lib hxnodejs
+-lib tink_cli
+
+-cmd node bin/run.js ~/Codes/grest_sheets/api/sheets.json ~/Codes/grest_sheets/src
