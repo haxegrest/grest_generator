@@ -4,4 +4,4 @@
 -lib hxnodejs
 -lib tink_cli
 
--cmd node bin/run.js ~/Codes/grest_sheets/api/sheets.json ~/Codes/grest_sheets/src
+-cmd node bin/run.js ~/Codes/grest_sheets/api/sheets.json  -o ~/Codes/grest_sheets/src
