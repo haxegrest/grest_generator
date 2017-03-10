@@ -83,13 +83,14 @@ class Generator {
 				
 				var args:Array<FunctionArg> = [];
 				
+				var path = processPath(method.path, method.id.replace('.', '_'));
+				
 				// path params
-				for(p in method.parameterOrder) {
-					var param = method.parameters.get(p);
+				for(param in path.params) {
 					args.push({
-						name: p,
-						opt: !param.required,
-						type: resolveComplexType(param, 'Api_' + upperFirst(sub), methodName),
+						name: param.name,
+						opt: !method.parameters.get(param.name).required,
+						type: param.type,
 					});
 				}
 				// query params
@@ -133,7 +134,7 @@ class Generator {
 					}),
 					meta: [{
 						name: ':' + method.httpMethod.toLowerCase(),
-						params: [{expr: EConst(CString('/' + translatePath(method.path))), pos: null}],
+						params: [{expr: EConst(CString('/' + path.path)), pos: null}],
 						pos: null,
 					}],
 					pos: null,
@@ -188,10 +189,38 @@ class Generator {
 		return s.substr(0, 1).toUpperCase() + s.substr(1);
 	}
 	
-	var pathRegex = ~/{([^}]*)}/g;
-	function translatePath(v:String) {
-		if(pathRegex.match(v)) return pathRegex.replace(v, "$$$1");
-		return v;
+	var pathRegex = ~/{([^}]*)}(.*)/g;
+	function processPath(v:String, method:String) {
+		
+		var params = [];
+		
+		var parts = v.split('/').map(function(part) {
+			return if(pathRegex.match(part)) {
+				var param = pathRegex.matched(1);
+				switch pathRegex.matched(2) {
+					case null | '':
+						params.push({name: param, type: macro:String});
+					case cmd:
+						var clsname = 'Api_${method}_${param}_Command';
+						var tp = {name: clsname, pack: typesPack};
+						var cmdExpr = {expr: EConst(CString(cmd)), pos: null};
+						var def = macro class $clsname {
+							inline function new(v:String) this = v;
+							@:from public static inline function fromString(v:String)
+								return new $tp(v + $cmdExpr);
+						}
+						def.pack = typesPack;
+						def.kind = TDAbstract(macro:String, [], [macro:String, macro:tink.Stringly]);
+						writeTypeDefinition(def);
+						params.push({name: param, type: TPath(tp)});
+				}
+				
+				"$" + param;
+			} else
+				part;
+		});
+		
+		return {path: parts.join('/'), params: params};
 	}
 	
 	function writeTypeDefinition(def:TypeDefinition) {
