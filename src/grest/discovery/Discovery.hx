@@ -38,7 +38,7 @@ abstract Parameter(Parameter_) from Parameter_ to Parameter_ {
 			case 'integer': macro:Int;
 			case 'number': macro:Float;
 			case 'boolean': macro:Bool;
-			case 'any': macro:Dynamic;
+			case 'any': macro:tink.json.Value;
 			case 'array':
 				switch this.items.resolveType() {
 					case Complex(ct): macro:Array<$ct>;

@@ -25,6 +25,9 @@ class Command {
 
 class Generator {
 	static function main() {
+		var sms = js.Lib.require('source-map-support');
+		sms.install();
+		haxe.CallStack.wrapCallSite = sms.wrapCallSite;
 		Cli.process(Sys.args(), new Command()).handle(Cli.exit);
 	}
 	
@@ -136,6 +139,11 @@ class Generator {
 						name: ':' + method.httpMethod.toLowerCase(),
 						params: [{expr: EConst(CString('/' + path.path)), pos: null}],
 						pos: null,
+					}, {
+						name: ':consumes',
+						params: [{expr: EConst(CString('application/json')), pos: null}],
+						pos: null,
+						
 					}],
 					pos: null,
 				});
@@ -158,6 +166,18 @@ class Generator {
 	}
 	
 	function genTypes() {
+		
+		var apiName = description.name.charAt(0).toUpperCase() + description.name.substr(1);
+		var api = macro class $apiName {
+			public static function api(auth:grest.Authenticator, client:tink.http.Client) {
+				return new tink.web.proxy.Remote<grest.sheets.v4.api.Sheets>(
+					new grest.AuthedClient(auth, client),
+					new tink.web.proxy.Remote.RemoteEndpoint(new tink.url.Host('sheets.googleapis.com'))
+				);
+			}
+		}
+		api.pack = pack;
+		writeTypeDefinition(api);
 		
 		for(key in description.schemas.keys()) {
 			var schema = description.schemas.get(key);
