@@ -139,11 +139,6 @@ class Generator {
 						name: ':' + method.httpMethod.toLowerCase(),
 						params: [{expr: EConst(CString('/' + path.path)), pos: null}],
 						pos: null,
-					}, {
-						name: ':consumes',
-						params: [{expr: EConst(CString('application/json')), pos: null}],
-						pos: null,
-						
 					}],
 					pos: null,
 				});
