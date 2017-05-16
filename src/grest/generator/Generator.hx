@@ -137,7 +137,7 @@ class Generator {
 					}),
 					meta: [{
 						name: ':' + method.httpMethod.toLowerCase(),
-						params: [{expr: EConst(CString('/' + path.path)), pos: null}],
+						params: [{expr: EConst(CString(normalize(description.servicePath + '/' + path.path))), pos: null}],
 						pos: null,
 					}],
 					pos: null,
@@ -159,6 +159,9 @@ class Generator {
 		
 		return fields;
 	}
+	
+	function normalize(path:String)
+		return haxe.io.Path.normalize(if(path.charCodeAt(0) == '/'.code) path else '/$path');
 	
 	function genTypes() {
 		
