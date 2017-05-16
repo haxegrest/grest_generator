@@ -8,6 +8,7 @@ import sys.io.File;
 import sys.FileSystem;
 import grest.discovery.Discovery;
 import tink.Cli;
+import tink.Url;
 
 using StringTools;
 using Lambda;
@@ -171,11 +172,17 @@ class Generator {
 		
 		var apiName = description.name.charAt(0).toUpperCase() + description.name.substr(1);
 		var ct = TPath({name: apiName, pack: apiPack});
+		var url = Url.parse(description.rootUrl);
+		var host = {expr: EConst(CString(url.host.name)), pos: null};
+		var port = {expr: switch url.host.port {
+			case null: EConst(CIdent('null'));
+			case port: EConst(CInt(Std.string(port)));
+		}, pos: null};
 		var api = macro class $apiName {
 			public static function api(auth:grest.Authenticator, client:tink.http.Client) {
 				return new tink.web.proxy.Remote<$ct>(
 					new grest.AuthedClient(auth, client),
-					new tink.web.proxy.Remote.RemoteEndpoint(new tink.url.Host('sheets.googleapis.com'))
+					new tink.web.proxy.Remote.RemoteEndpoint(new tink.url.Host($host, $port))
 				);
 			}
 		}
