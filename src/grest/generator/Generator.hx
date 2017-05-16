@@ -163,9 +163,10 @@ class Generator {
 	function genTypes() {
 		
 		var apiName = description.name.charAt(0).toUpperCase() + description.name.substr(1);
+		var ct = TPath({name: apiName, pack: apiPack});
 		var api = macro class $apiName {
 			public static function api(auth:grest.Authenticator, client:tink.http.Client) {
-				return new tink.web.proxy.Remote<grest.sheets.v4.api.Sheets>(
+				return new tink.web.proxy.Remote<$ct>(
 					new grest.AuthedClient(auth, client),
 					new tink.web.proxy.Remote.RemoteEndpoint(new tink.url.Host('sheets.googleapis.com'))
 				);

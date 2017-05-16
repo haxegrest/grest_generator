@@ -44,10 +44,23 @@ abstract Parameter(Parameter_) from Parameter_ to Parameter_ {
 					case Complex(ct): macro:Array<$ct>;
 					case t: throw 'unhandled nested type $t';
 				}
-			case 'object': 
-				switch this.additionalProperties.resolveType() {
-					case Complex(ct): macro:haxe.DynamicAccess<$ct>;
-					case t: throw 'unhandled nested type $t';
+			case 'object':
+				if(this.additionalProperties != null) {
+					switch this.additionalProperties.resolveType() {
+						case Complex(ct): macro:haxe.DynamicAccess<$ct>;
+						case t: throw 'unhandled nested type $t';
+					}
+				} else if(this.properties != null) {
+					TAnonymous([for(key in this.properties.keys()) {
+						name: key,
+						kind: FVar(switch this.properties.get(key).resolveType() {
+							case Complex(ct): ct;
+							case t: throw 'TODO: handle enum type in anon obj field';
+						}),
+						pos: null,
+					}]);
+				} else {
+					throw 'Expected `additionalProperties` or `properties` in an "object"';
 				}
 			case v: throw 'unhandled type $v';
 		}
