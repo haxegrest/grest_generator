@@ -104,6 +104,7 @@ class Generator {
 						queries.push({
 							name: key,
 							kind: FVar(resolveComplexType(param, 'Api_' + upperFirst(sub) + '_$methodName', key)),
+							doc: param.description,
 							meta: param.required ? [] : [{name: ':optional', pos: null}],
 							pos: null,
 						});
@@ -135,6 +136,7 @@ class Generator {
 							pack: typesPack,
 						}),
 					}),
+					doc: method.description,
 					meta: [{
 						name: ':' + method.httpMethod.toLowerCase(),
 						params: [{expr: EConst(CString(normalize(description.servicePath + '/' + path.path))), pos: null}],
@@ -184,11 +186,13 @@ class Generator {
 			var fields:Array<Field> = [];
 			
 			for(key in schema.properties.keys()) {
-				var ct = resolveComplexType(schema.properties.get(key), schema.id, key);
+				var param = schema.properties.get(key);
+				var ct = resolveComplexType(param, schema.id, key);
 				
 				fields.push({
 					name: key,
 					kind: FVar(ct),
+					doc: param.description,
 					pos: null,
 					meta: [{name: ':optional', pos: null}],
 				});
