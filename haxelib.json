@@ -1,0 +1,21 @@
+{
+  "name": "grest_generator",
+  "license": "MIT",
+  "tags": [
+    "google",
+    "rest",
+    "api",
+    "client",
+    "generator"
+  ],
+  "classPath": "src",
+  "contributors": [
+    "kevinresol"
+  ],
+  "releasenote": "initial release",
+  "version": "0.0.0",
+  "url": "https://github.com/haxegrest/grest_generator/",
+  "dependencies": {
+    "grest_discovery": ""
+  }
+}

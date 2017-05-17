@@ -221,39 +221,6 @@ class Generator {
 		return s.substr(0, 1).toUpperCase() + s.substr(1);
 	}
 	
-	var pathRegex = ~/{([^}]*)}(.*)/g;
-	function processPath(v:String, method:String) {
-		
-		var params = [];
-		
-		var parts = v.split('/').map(function(part) {
-			return if(pathRegex.match(part)) {
-				var param = pathRegex.matched(1);
-				switch pathRegex.matched(2) {
-					case null | '':
-						params.push({name: param, type: macro:String});
-					case cmd:
-						var clsname = 'Api_${method}_${param}_Command';
-						var tp = {name: clsname, pack: typesPack};
-						var cmdExpr = {expr: EConst(CString(cmd)), pos: null};
-						var def = macro class $clsname {
-							inline function new(v:String) this = v;
-							@:from public static inline function fromString(v:String)
-								return new $tp(v + $cmdExpr);
-						}
-						def.pack = typesPack;
-						def.kind = TDAbstract(macro:String, [], [macro:String, macro:tink.Stringly]);
-						writeTypeDefinition(def);
-						params.push({name: param, type: TPath(tp)});
-				}
-				
-				"$" + param;
-			} else
-				part;
-		});
-		
-		return {path: parts.join('/'), params: params};
-	}
 	
 	function writeTypeDefinition(def:TypeDefinition) {
 		var folder = output + '/' + def.pack.join('/');
@@ -282,29 +249,4 @@ class Generator {
 				TPath({name: enumName, pack: typesPack});
 		}
 	}
-}
-
-@:forward(keys)
-abstract InterfaceMap(Map<String, Array<Field>>) {
-	public inline function new()
-		this = new Map();
-		
-	public function add(pack:Array<String>, field:Field) {
-		var key = pack.join('.');
-		if(!this.exists(key)) this[key] = [];
-		this[key].push(field);
-	}
-	
-	public function has(pack:Array<String>, field:String) {
-		var key = pack.join('.');
-		return this.exists(key) && this[key].find(function(f) return f.name == field) != null;
-	}
-	
-	@:arrayAccess
-	public inline function _get(k:String):Array<Field>
-		return this[k];
-		
-	@:arrayAccess
-	public inline function _set(k:String, v:Array<Field>):Array<Field>
-		return this[k] = v;
 }

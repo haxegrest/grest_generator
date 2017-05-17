@@ -1,0 +1,6 @@
+# @install: lix --silent download https://github.com/haxegrest/grest_discovery/archive/4c3118af5cce1e6580dd298cb0759d9cf2379ccd.tar.gz into grest_discovery/0.0.0/github/4c3118af5cce1e6580dd298cb0759d9cf2379ccd
+-D grest_discovery=0.0.0
+-cp ${HAXESHIM_LIBCACHE}/grest_discovery/0.0.0/github/4c3118af5cce1e6580dd298cb0759d9cf2379ccd/src
+
+-lib tink_http_fetch
+-lib tink_json

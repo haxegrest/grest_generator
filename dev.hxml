@@ -1,0 +1,7 @@
+tests.hxml
+
+-js bin/node/tests.js
+
+-lib travix
+-lib grest_generator
+-lib hxnodejs

@@ -3,5 +3,7 @@
 -js bin/run.js
 -lib hxnodejs
 -lib tink_cli
+-lib tink_url
+-lib grest_discovery
 
--cmd node bin/run.js ~/Codes/grest_sheets/api/sheets.json  -o ~/Codes/grest_sheets/src
+-cmd node bin/run.js playground/games.json -o playground
