@@ -3,5 +3,6 @@
 -js bin/run.js
 -lib hxnodejs
 -lib tink_cli
+-lib grest_discovery
 
 -cmd node bin/run.js ~/Codes/grest_sheets/api/sheets.json  -o ~/Codes/grest_sheets/src

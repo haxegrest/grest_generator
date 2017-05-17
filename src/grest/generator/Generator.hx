@@ -10,6 +10,7 @@ import grest.discovery.Discovery;
 import tink.Cli;
 import tink.Url;
 
+using tink.CoreApi;
 using StringTools;
 using Lambda;
 
@@ -42,7 +43,7 @@ class Generator {
 	var output:String;
 	
 	public function new(json:String, out:String) {
-		description = Discovery.parse(json);
+		description = Discovery.parse(json).sure();
 		name = description.name;
 		version = description.version;
 		pack = ['grest', name, version];
@@ -121,7 +122,7 @@ class Generator {
 					args.push({
 						name: 'body',
 						type: TPath({
-							name: method.request._ref,
+							name: method.request.ref,
 							pack: typesPack,
 						}),
 					});
@@ -133,7 +134,7 @@ class Generator {
 						args: args,
 						expr: null,
 						ret: TPath({
-							name: method.response._ref,
+							name: method.response.ref,
 							pack: typesPack,
 						}),
 					}),
@@ -261,8 +262,52 @@ class Generator {
 		File.saveContent('$folder/${def.name}.hx', printer.printTypeDefinition(def));
 	}
 	
+	function resolveType(v:Parameter):ResolvedType {
+		switch v.ref {
+			case null: // continue
+			case ref: return Complex(TPath({name: ref, pack: []}));
+		}
+		
+		var ct = switch v.type {
+			case 'string': macro:String;
+			case 'integer': macro:Int;
+			case 'number': macro:Float;
+			case 'boolean': macro:Bool;
+			case 'any': macro:tink.json.Value;
+			case 'array':
+				switch resolveType(v.items) {
+					case Complex(ct): macro:Array<$ct>;
+					case t: throw 'unhandled nested type $t';
+				}
+			case 'object':
+				if(v.additionalProperties != null) {
+					switch resolveType(v.additionalProperties) {
+						case Complex(ct): macro:haxe.DynamicAccess<$ct>;
+						case t: throw 'unhandled nested type $t';
+					}
+				} else if(v.properties != null) {
+					TAnonymous([for(key in v.properties.keys()) {
+						name: key,
+						kind: FVar(switch resolveType(v.properties.get(key)) {
+							case Complex(ct): ct;
+							case t: throw 'TODO: handle enum type in anon obj field';
+						}),
+						pos: null,
+					}]);
+				} else {
+					throw 'Expected `additionalProperties` or `properties` in an "object"';
+				}
+			case v: throw 'unhandled type $v';
+		}
+		
+		return switch v.enum_ {
+			case null: Complex(ct);
+			case values: Enum(values);
+		}
+	}
+	
 	function resolveComplexType(v:Parameter, name, key) {
-		return switch v.resolveType() {
+		return switch resolveType(v) {
 			case Complex(ct):
 				ct;
 			case Enum(values):
@@ -307,4 +352,9 @@ abstract InterfaceMap(Map<String, Array<Field>>) {
 	@:arrayAccess
 	public inline function _set(k:String, v:Array<Field>):Array<Field>
 		return this[k] = v;
+}
+
+enum ResolvedType {
+	Complex(ct:ComplexType);
+	Enum(values:Array<String>);
 }
