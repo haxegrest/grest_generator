@@ -14,7 +14,9 @@ using tink.CoreApi;
 using StringTools;
 using Lambda;
 class Generator {
-	static var API_ROOT_SUFFIX = 'ApiRoot';
+	static final API_ROOT_SUFFIX = 'ApiRoot';
+	static final KEYWORDS = ['abstract', 'break', 'case', 'cast', 'catch', 'class', 'continue', 'default', 'do', 'dynamic', 'else', 'enum', 'extends', 'extern', 'false', 'final', 'for', 'function', 'if', 'implements', 'import', 'in', 'inline', 'interface', 'macro', 'new', 'null', 'operator', 'overload', 'override', 'package', 'private', 'public', 'return', 'static', 'switch', 'this', 'throw', 'true', 'try', 'typedef', 'untyped', 'using', 'var', 'while'];
+	
 	var description:RestDescription;
 	var name:String;
 	var version:String;
@@ -89,11 +91,17 @@ class Generator {
 				for(key in sorted(method.parameters.keys(), Reflect.compare)) {
 					var param = method.parameters.get(key);
 					if(param.location == 'query') {
+						final isKeyword = KEYWORDS.contains(key);
 						queries.push({
-							name: key,
+							name: key + (isKeyword ? '_' : ''),
 							kind: FVar(resolveComplexType(param, 'Api_' + upperFirst(sub) + '_$methodName', key)),
 							doc: param.description,
-							meta: param.required ? [] : [{name: ':optional', pos: null}],
+							meta: {
+								final meta:Metadata = [];
+								if(!param.required) meta.push({name: ':optional', pos: null});
+								if(isKeyword) meta.push({name: ':formField', params: [{expr: EConst(CString(key)), pos: null}], pos: null});
+								meta;
+							},
 							pos: null,
 						});
 					}
@@ -115,13 +123,13 @@ class Generator {
 				}
 				
 				fields.add(pack, {
-					name: methodName,
+					name: KEYWORDS.contains(methodName) ? methodName + '_' : methodName,
 					kind: FFun({
 						args: args,
 						expr: null,
 						ret: switch method.response {
 							case null:
-								macro:Void;
+								macro:tink.core.Noise;
 							case res: 
 								TPath({
 									name: method.response.ref,
@@ -175,10 +183,11 @@ class Generator {
 		var apiName = upperFirst(description.name);
 		var ct = TPath({name: apiName + API_ROOT_SUFFIX, pack: apiPack});
 		var url = {expr: EConst(CString(description.rootUrl)), pos: null}
+		var target = {expr: ECheckType(url, ct), pos: null}
 		var api = macro class $apiName {
 			public function new(auth:grest.Authenticator, ?client:tink.http.Client) {
-				if(client == null) client = tink.http.Fetch.getClient(Default);
-				this = tink.Web.connect(($url:$ct), {client: new grest.AuthedClient(auth, client)});
+				if(client == null) client = @:privateAccess tink.http.Fetch.getClient(Default);
+				this = tink.Web.connect($target, {client: new grest.AuthedClient(auth, client)});
 			}
 		}
 		var underlying = macro:tink.web.proxy.Remote<$ct>;
@@ -285,12 +294,19 @@ class Generator {
 					}
 				} else if(v.properties != null) {
 					TAnonymous([for(key in sorted(v.properties.keys(), Reflect.compare)) {
-						name: key,
-						kind: FVar(switch resolveType(v.properties.get(key)) {
-							case Complex(ct): ct;
-							case Enum(_): macro:String; // TODO: build a enum abstract
-						}),
-						pos: null,
+						final isKeyword = KEYWORDS.contains(key);
+						{
+							name: key + (isKeyword ? '_' : ''),
+							kind: FVar(switch resolveType(v.properties.get(key)) {
+								case Complex(ct): ct;
+								case Enum(_): macro:String; // TODO: build a enum abstract
+							}),
+							meta: isKeyword ? [
+								{name: ':formField', params: [{expr: EConst(CString(key)), pos: null}], pos: null},
+								{name: ':json', params: [{expr: EConst(CString(key)), pos: null}], pos: null},
+							] : [],
+							pos: null,
+						}
 					}]);
 				} else {
 					throw 'Expected `additionalProperties` or `properties` in an "object"';
