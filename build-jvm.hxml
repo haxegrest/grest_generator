@@ -1,13 +1,9 @@
--cp src
+common.hxml
 -main grest.generator.Generator
--js bin/run.js
--lib hxnodejs
--lib tink_cli
--lib grest_discovery
+--jvm bin/Generator.jar
+-lib hxjava
 -debug
-
--D no-deprecation-warnings
 
 # -cmd node bin/run.js "https://calendar-json.googleapis.com/\$discovery/rest?version=v3"  -o playground
 # -cmd node bin/run.js "https://alertcenter.googleapis.com/\$discovery/rest?version=v1beta1"  -o playground
--cmd node bin/run.js all -o ../grest/src
+# -cmd node bin/run.js all -o ../grest/src

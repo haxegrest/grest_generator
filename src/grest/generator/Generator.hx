@@ -33,22 +33,26 @@ class Command {
 	public function all() {
 		return new grest.discovery.Directory().apis()
 			.next(v -> [for(item in v.items) if(item.preferred) item.discoveryRestUrl])
-			.next(v -> v.filter(url -> url != "https://baremetalsolution.googleapis.com/$discovery/rest?version=v1")) // somehow this gives a 403 error)
-			.next(urls -> Promise.inParallel(urls.map(url -> {
-				new grest.discovery.Description(url).get()
-					.next(description -> {
-						new Generator(description, output).generate();
-						Noise;
-					});
-			})));
+			// .next(v -> v.filter(url -> url != "https://baremetalsolution.googleapis.com/$discovery/rest?version=v1")) // somehow this gives a 403 error)
+			.next(urls -> {
+				Future.inParallel(urls.map(url -> {
+					new grest.discovery.Description(url).get()
+						.next(description -> {
+							new Generator(description, output).generate();
+							Noise;
+						});
+				}));
+			});
 	}
 }
 
 class Generator {
 	static function main() {
+		#if nodejs
 		var sms = js.Lib.require('source-map-support');
 		sms.install();
 		haxe.NativeStackTrace.wrapCallSite = sms.wrapCallSite;
+		#end
 		Cli.process(Sys.args(), new Command()).handle(Cli.exit);
 	}
 	
@@ -97,7 +101,7 @@ class Generator {
 		
 		for(key in resources.keys()) {
 			var resource = resources.get(key);
-			for(key in resource.methods.keys()) {
+			if(resource.methods != null) for(key in resource.methods.keys()) {
 				var method = resource.methods.get(key);
 				var pack = method.id.split('.');
 				var methodName = pack.pop();
@@ -249,7 +253,7 @@ class Generator {
 		return s.substr(0, 1).toUpperCase() + s.substr(1);
 	}
 	
-	var pathRegex = ~/{([^}]*)}(.*)/g;
+	var pathRegex = ~/\{([^}]*)\}(.*)/g;
 	function processPath(v:String, method:String) {
 		
 		var params = [];

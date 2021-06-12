@@ -1,0 +1,6 @@
+common.hxml
+
+-D eval-stack
+-D eva
+
+--run grest.generator.Generator
