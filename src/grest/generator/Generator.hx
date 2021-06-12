@@ -180,6 +180,7 @@ class Generator {
 	
 	function genTypes() {
 		
+		// Generate the root API interface
 		var apiName = upperFirst(description.name);
 		var ct = TPath({name: apiName + API_ROOT_SUFFIX, pack: apiPack});
 		var url = {expr: EConst(CString(description.rootUrl)), pos: null}
@@ -191,11 +192,49 @@ class Generator {
 			}
 		}
 		var underlying = macro:tink.web.proxy.Remote<$ct>;
+		api.doc = {
+			final buf = new StringBuf();
+			
+			final meta = [];
+			
+			meta.push(new Pair('ID', description.id));
+			meta.push(new Pair('Name', description.name));
+			if(description.title != null)
+				meta.push(new Pair('Title', description.title));
+			if(description.description != null)
+				meta.push(new Pair('Description', description.description));
+			meta.push(new Pair('Version', description.version));
+			if(description.revision != null)
+				meta.push(new Pair('Revision', description.revision));
+			meta.push(new Pair('Root Url', description.rootUrl));
+			meta.push(new Pair('Service Path', description.servicePath));
+			meta.push(new Pair('Batch Path', description.batchPath));
+			if(description.documentationLink != null)
+				meta.push(new Pair('Documentation', description.documentationLink));
+		
+			
+			switch description.auth {
+				case null: // skip
+				case {oauth2: {scopes: scopes}}:
+					meta.push(new Pair('Scopes', '\n' + [for(name => obj in scopes) '  - $name\n    ${obj.description}'].join('\n')));
+			}
+			
+			if(description.features != null)
+				meta.push(new Pair('Features', [for(v in description.features) '  - $v'].join('\n')));
+			
+			var maxMetaNameLength = 0;
+			for(m in meta) if(m.a.length > maxMetaNameLength) maxMetaNameLength = m.a.length;
+			for(m in meta) buf.add('${m.a.rpad(' ', maxMetaNameLength)} : ${m.b}\n');
+			
+			
+			buf.toString();
+		}
 		api.meta = [{name: ':forward', pos: null}];
 		api.kind = TDAbstract(underlying, [underlying], [underlying]);
 		api.pack = pack;
 		writeTypeDefinition(api);
 		
+		// Generate other types
 		for(key in description.schemas.keys()) {
 			var schema = description.schemas.get(key);
 			
