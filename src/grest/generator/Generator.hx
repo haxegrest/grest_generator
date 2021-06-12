@@ -14,6 +14,7 @@ using tink.CoreApi;
 using StringTools;
 using Lambda;
 class Generator {
+	static var API_ROOT_SUFFIX = 'ApiRoot';
 	var description:RestDescription;
 	var name:String;
 	var version:String;
@@ -37,10 +38,11 @@ class Generator {
 	public function generate() {
 		genTypes();
 		var fields = genMethods(description.resources);
+		
 		for(key in fields.keys()) {
 			var localPack = key.split('.');
 			var className = switch localPack.pop() {
-				case '': upperFirst(name);
+				case '': upperFirst(name + API_ROOT_SUFFIX);
 				case v: upperFirst(v);
 			}
 			
@@ -84,7 +86,7 @@ class Generator {
 				}
 				// query params
 				var queries:Array<Field> = [];
-				for(key in method.parameters.keys()) {
+				for(key in sorted(method.parameters.keys(), Reflect.compare)) {
 					var param = method.parameters.get(key);
 					if(param.location == 'query') {
 						queries.push({
@@ -162,10 +164,16 @@ class Generator {
 		return v.charCodeAt(0) == '+'.code ? v.substr(1) : v;
 	}
 	
+	static function sorted<T>(iterable:Iterable<T>, f:T->T->Int) {
+		var arr = [for(v in iterable) v];
+		arr.sort(f);
+		return arr;
+	}
+	
 	function genTypes() {
 		
-		var apiName = description.name.charAt(0).toUpperCase() + description.name.substr(1);
-		var ct = TPath({name: apiName, pack: apiPack});
+		var apiName = upperFirst(description.name);
+		var ct = TPath({name: apiName + API_ROOT_SUFFIX, pack: apiPack});
 		var url = {expr: EConst(CString(description.rootUrl)), pos: null}
 		var api = macro class $apiName {
 			public function new(auth:grest.Authenticator, ?client:tink.http.Client) {
@@ -184,7 +192,7 @@ class Generator {
 			
 			var fields:Array<Field> = [];
 			
-			for(key in schema.properties.keys()) {
+			for(key in sorted(schema.properties.keys(), Reflect.compare)) {
 				var param = schema.properties.get(key);
 				var ct = resolveComplexType(param, schema.id, key);
 				
@@ -246,6 +254,7 @@ class Generator {
 	}
 	
 	function writeTypeDefinition(def:TypeDefinition) {
+		def.fields.sort((f1, f2) -> Reflect.compare(f1.name, f2.name));
 		var folder = output + '/' + def.pack.join('/');
 		if(!FileSystem.exists(folder)) FileSystem.createDirectory(folder);
 		File.saveContent('$folder/${def.name}.hx', printer.printTypeDefinition(def));
@@ -275,7 +284,7 @@ class Generator {
 						case Enum(_): macro:haxe.DynamicAccess<String>; // TODO: build a enum abstract
 					}
 				} else if(v.properties != null) {
-					TAnonymous([for(key in v.properties.keys()) {
+					TAnonymous([for(key in sorted(v.properties.keys(), Reflect.compare)) {
 						name: key,
 						kind: FVar(switch resolveType(v.properties.get(key)) {
 							case Complex(ct): ct;
