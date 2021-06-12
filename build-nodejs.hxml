@@ -1,5 +1,5 @@
 common.hxml
--main grest.generator.Generator
+-main grest.generator.Cli
 -js bin/run.js
 -lib hxnodejs
 -debug

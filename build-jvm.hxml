@@ -1,5 +1,5 @@
 common.hxml
--main grest.generator.Generator
+-main grest.generator.Cli
 --jvm bin/Generator.jar
 -lib hxjava
 -debug

@@ -1,0 +1,18 @@
+{
+  "name": "grest_generator",
+  "license": "MIT",
+  "tags": [
+    "google",
+    "rest",
+    "api"
+  ],
+  "classPath": "src",
+  "contributors": [
+    "kevinresol"
+  ],
+  "releasenote": "initial release",
+  "version": "0.0.0",
+  "dependencies": {
+    "grest_discovery": ""
+  }
+}

@@ -8,54 +8,12 @@ import sys.io.File;
 import sys.FileSystem;
 import grest.discovery.*;
 import grest.discovery.types.*;
-import tink.Cli;
 import tink.Url;
 
 using tink.CoreApi;
 using StringTools;
 using Lambda;
-
-class Command {
-	public function new() {}
-	
-	public var output:String;
-	
-	@:defaultCommand
-	public function run(url:String) {
-		return new grest.discovery.Description(url).get()
-			.next(description -> {
-				new Generator(description, output).generate();
-				Noise;
-			});
-	}
-	
-	@:command
-	public function all() {
-		return new grest.discovery.Directory().apis()
-			.next(v -> [for(item in v.items) if(item.preferred) item.discoveryRestUrl])
-			// .next(v -> v.filter(url -> url != "https://baremetalsolution.googleapis.com/$discovery/rest?version=v1")) // somehow this gives a 403 error)
-			.next(urls -> {
-				Future.inParallel(urls.map(url -> {
-					new grest.discovery.Description(url).get()
-						.next(description -> {
-							new Generator(description, output).generate();
-							Noise;
-						});
-				}));
-			});
-	}
-}
-
 class Generator {
-	static function main() {
-		#if nodejs
-		var sms = js.Lib.require('source-map-support');
-		sms.install();
-		haxe.NativeStackTrace.wrapCallSite = sms.wrapCallSite;
-		#end
-		Cli.process(Sys.args(), new Command()).handle(Cli.exit);
-	}
-	
 	var description:RestDescription;
 	var name:String;
 	var version:String;
