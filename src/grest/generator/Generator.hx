@@ -6,7 +6,8 @@ import haxe.macro.Context;
 import haxe.macro.Printer;
 import sys.io.File;
 import sys.FileSystem;
-import grest.discovery.Discovery;
+import grest.discovery.*;
+import grest.discovery.types.*;
 import tink.Cli;
 import tink.Url;
 
@@ -20,8 +21,26 @@ class Command {
 	public var output:String;
 	
 	@:defaultCommand
-	public function run(path:String) {
-		new Generator(sys.io.File.getContent(path), output).generate();
+	public function run(url:String) {
+		return new grest.discovery.Description(url).get()
+			.next(description -> {
+				new Generator(description, output).generate();
+				Noise;
+			});
+	}
+	
+	@:command
+	public function all() {
+		return new grest.discovery.Directory().apis()
+			.next(v -> [for(item in v.items) if(item.preferred) item.discoveryRestUrl])
+			.next(v -> v.filter(url -> url != "https://baremetalsolution.googleapis.com/$discovery/rest?version=v1")) // somehow this gives a 403 error)
+			.next(urls -> Promise.inParallel(urls.map(url -> {
+				new grest.discovery.Description(url).get()
+					.next(description -> {
+						new Generator(description, output).generate();
+						Noise;
+					});
+			})));
 	}
 }
 
@@ -29,11 +48,11 @@ class Generator {
 	static function main() {
 		var sms = js.Lib.require('source-map-support');
 		sms.install();
-		haxe.CallStack.wrapCallSite = sms.wrapCallSite;
+		haxe.NativeStackTrace.wrapCallSite = sms.wrapCallSite;
 		Cli.process(Sys.args(), new Command()).handle(Cli.exit);
 	}
 	
-	var description:Description;
+	var description:RestDescription;
 	var name:String;
 	var version:String;
 	var pack:Array<String>;
@@ -42,9 +61,10 @@ class Generator {
 	var printer = new Printer();
 	var output:String;
 	
-	public function new(json:String, out:String) {
-		description = Discovery.parse(json).sure();
+	public function new(description, out:String) {
+		this.description = description;
 		name = description.name;
+		trace(name);
 		version = description.version;
 		pack = ['grest', name, version];
 		typesPack = pack.concat(['types']);
@@ -82,9 +102,10 @@ class Generator {
 				var pack = method.id.split('.');
 				var methodName = pack.pop();
 				pack.shift(); // rip off api name
-				var sub = pack[pack.length - 1];
-				
-				
+				var sub = switch pack[pack.length - 1] {
+					case null: 'root';
+					case v: v;
+				}
 				
 				var args:Array<FunctionArg> = [];
 				
@@ -92,9 +113,10 @@ class Generator {
 				
 				// path params
 				for(param in path.params) {
+					final name = sanitizePathParam(param.name);
 					args.push({
-						name: param.name,
-						opt: !method.parameters.get(param.name).required,
+						name: name,
+						opt: !method.parameters.get(name).required,
 						type: param.type,
 					});
 				}
@@ -133,10 +155,15 @@ class Generator {
 					kind: FFun({
 						args: args,
 						expr: null,
-						ret: TPath({
-							name: method.response.ref,
-							pack: typesPack,
-						}),
+						ret: switch method.response {
+							case null:
+								macro:Void;
+							case res: 
+								TPath({
+									name: method.response.ref,
+									pack: typesPack,
+								});
+						},
 					}),
 					doc: method.description,
 					meta: [{
@@ -164,29 +191,29 @@ class Generator {
 		return fields;
 	}
 	
-	function normalize(base:String, path:String) {
+	static function normalize(base:String, path:String) {
 		var path = if(base == null) path else '$base/$path';
 		return haxe.io.Path.normalize(if(path.charCodeAt(0) == '/'.code) path else '/$path');
+	}
+	
+	static function sanitizePathParam(v:String) {
+		return v.charCodeAt(0) == '+'.code ? v.substr(1) : v;
 	}
 	
 	function genTypes() {
 		
 		var apiName = description.name.charAt(0).toUpperCase() + description.name.substr(1);
 		var ct = TPath({name: apiName, pack: apiPack});
-		var url = Url.parse(description.rootUrl);
-		var host = {expr: EConst(CString(url.host.name)), pos: null};
-		var port = {expr: switch url.host.port {
-			case null: EConst(CIdent('null'));
-			case port: EConst(CInt(Std.string(port)));
-		}, pos: null};
+		var url = {expr: EConst(CString(description.rootUrl)), pos: null}
 		var api = macro class $apiName {
-			public static function api(auth:grest.Authenticator, client:tink.http.Client) {
-				return new tink.web.proxy.Remote<$ct>(
-					new grest.AuthedClient(auth, client),
-					new tink.web.proxy.Remote.RemoteEndpoint(new tink.url.Host($host, $port))
-				);
+			public function new(auth:grest.Authenticator, ?client:tink.http.Client) {
+				if(client == null) client = tink.http.Fetch.getClient(Default);
+				this = tink.Web.connect(($url:$ct), {client: new grest.AuthedClient(auth, client)});
 			}
 		}
+		var underlying = macro:tink.web.proxy.Remote<$ct>;
+		api.meta = [{name: ':forward', pos: null}];
+		api.kind = TDAbstract(underlying, [underlying], [underlying]);
 		api.pack = pack;
 		writeTypeDefinition(api);
 		
@@ -229,7 +256,7 @@ class Generator {
 		
 		var parts = v.split('/').map(function(part) {
 			return if(pathRegex.match(part)) {
-				var param = pathRegex.matched(1);
+				var param = sanitizePathParam(pathRegex.matched(1));
 				switch pathRegex.matched(2) {
 					case null | '':
 						params.push({name: param, type: macro:String});
@@ -277,20 +304,20 @@ class Generator {
 			case 'array':
 				switch resolveType(v.items) {
 					case Complex(ct): macro:Array<$ct>;
-					case t: throw 'unhandled nested type $t';
+					case Enum(_): macro:Array<String>; // TODO: build a enum abstract
 				}
 			case 'object':
 				if(v.additionalProperties != null) {
 					switch resolveType(v.additionalProperties) {
 						case Complex(ct): macro:haxe.DynamicAccess<$ct>;
-						case t: throw 'unhandled nested type $t';
+						case Enum(_): macro:haxe.DynamicAccess<String>; // TODO: build a enum abstract
 					}
 				} else if(v.properties != null) {
 					TAnonymous([for(key in v.properties.keys()) {
 						name: key,
 						kind: FVar(switch resolveType(v.properties.get(key)) {
 							case Complex(ct): ct;
-							case t: throw 'TODO: handle enum type in anon obj field';
+							case Enum(_): macro:String; // TODO: build a enum abstract
 						}),
 						pos: null,
 					}]);

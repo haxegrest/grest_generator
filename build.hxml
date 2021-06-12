@@ -4,5 +4,10 @@
 -lib hxnodejs
 -lib tink_cli
 -lib grest_discovery
+-debug
 
--cmd node bin/run.js ~/Codes/grest_sheets/api/sheets.json  -o ~/Codes/grest_sheets/src
+-D no-deprecation-warnings
+
+# -cmd node bin/run.js "https://calendar-json.googleapis.com/\$discovery/rest?version=v3"  -o playground
+# -cmd node bin/run.js "https://alertcenter.googleapis.com/\$discovery/rest?version=v1beta1"  -o playground
+-cmd node bin/run.js all -o ../grest/src
